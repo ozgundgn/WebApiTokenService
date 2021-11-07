@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using Services;
 
 namespace WebAPIApp.Controllers
 {
@@ -20,7 +21,6 @@ namespace WebAPIApp.Controllers
     public class UsersController : ControllerBase
     {
         private static IConfiguration _config;
-        private static AccessToken _accessToken;
         public UsersController(IConfiguration config)
         {
             _config = config;
@@ -34,9 +34,10 @@ namespace WebAPIApp.Controllers
         {
             return context.Set<User>().ToList();
         }
+        [HttpGet]
+        public User GetSingle(int id) => context.Set<User>().ToList().FirstOrDefault(x => x.Id == id);
 
-        public User GetSingle(int id) => context.Users.FirstOrDefault(u => u.Id == id);
-
+        [HttpPost("post")]
         public IActionResult Post(User user)
         {
             if (user != null)
@@ -48,7 +49,7 @@ namespace WebAPIApp.Controllers
 
             return BadRequest();
         }
-
+        [HttpPut]
         public IActionResult Put(User user)
         {
             if (user != null && user.Id != 0)
@@ -68,14 +69,15 @@ namespace WebAPIApp.Controllers
             }
             return Ok("Hata oluştu!");
         }
-
+        [HttpDelete]
         public IActionResult Delete(int id)
         {
-            var user = context.Users.FirstOrDefault(u => u.Id == id);
+            var user = context.Users.FirstOrDefault(x=>x.Id==id);
 
             if (user != null)
             {
-                context.Users.Remove(user);
+                var a=context.Remove(user);
+                context.SaveChanges();
                 return Ok("Silme işlemi başarılı!");
             }
 
@@ -88,32 +90,14 @@ namespace WebAPIApp.Controllers
             var result = new UnauthorizedResult();
             if (user != null && user.FirstName == "Ozgun" && user.LastName == "Dogan")
             {
-                var accessToken = GenerateToken();
+                var accessToken = GenerateToken.CreateToken();
                 return Ok(accessToken);
             }
 
             return result;
         }
 
-        public AccessToken GenerateToken()
-        {
-            if (_accessToken == null)
-            {
-                JwtOptions _jwtOptions = _config.GetSection("JWT").Get<JwtOptions>();
-                var symmetricSecurityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.SecurityKey));
-                var signinCredentials = new SigningCredentials(symmetricSecurityKey, SecurityAlgorithms.HmacSha512);
-                var token = new JwtSecurityToken(issuer: _jwtOptions.Issuer, audience: _jwtOptions.Audience, notBefore: DateTime.Now, expires: DateTime.Now.AddMinutes(_jwtOptions.AccessTokenExpiration), signingCredentials: signinCredentials);
 
-                var tokenHandler = new JwtSecurityTokenHandler().WriteToken(token);
-                _accessToken = new AccessToken()
-                {
-                    Token = tokenHandler,
-                    Expiration = DateTime.Now.AddMinutes(_jwtOptions.AccessTokenExpiration)
-                };
-            }
-
-            return _accessToken;
-        }
 
     }
 }
